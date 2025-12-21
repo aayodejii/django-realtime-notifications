@@ -43,7 +43,7 @@ class NotificationListCreateView(APIView):
     def post(self, request):
         serializer = NotificationSerializer(data=request.data)
         if serializer.is_valid():
-            notification = serializer.save()
+            notification = serializer.save(user=request.user)
             # TODO: Trigger WebSocket broadcast here in Phase 4
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

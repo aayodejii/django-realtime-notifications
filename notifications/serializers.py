@@ -14,16 +14,12 @@ class UserSerializer(serializers.ModelSerializer):
 
 class NotificationSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    user_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), source="user", write_only=True
-    )
 
     class Meta:
         model = Notification
         fields = [
             "id",
             "user",
-            "user_id",
             "title",
             "message",
             "priority",
@@ -39,6 +35,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "user",
             "created_at",
             "delivered_at",
             "read_at",
