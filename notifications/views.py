@@ -4,6 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from .models import Notification
 from .serializers import NotificationSerializer, NotificationStatsSerializer
 
@@ -44,7 +46,16 @@ class NotificationListCreateView(APIView):
         serializer = NotificationSerializer(data=request.data)
         if serializer.is_valid():
             notification = serializer.save(user=request.user)
-            # TODO: Trigger WebSocket broadcast here in Phase 4
+
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"notifications_{notification.user.id}",
+                {
+                    "type": "notification_message",
+                    "notification": serializer.data
+                }
+            )
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
