@@ -2,8 +2,10 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
+from asgiref.sync import sync_to_async
 from .models import Notification
 from .serializers import NotificationSerializer
+from .services.presence import PresenceService
 
 User = get_user_model()
 
@@ -25,6 +27,8 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
+        await sync_to_async(PresenceService.mark_online)(self.user.id)
+
         missed_notifications = await self.get_missed_notifications()
         if missed_notifications:
             await self.send(text_data=json.dumps({
@@ -32,18 +36,22 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                 "notifications": missed_notifications
             }))
 
-    async def disconnect(self, close_code):
+    async def disconnect(self, _close_code):
         if hasattr(self, "user_group_name"):
             await self.channel_layer.group_discard(
                 self.user_group_name,
                 self.channel_name
             )
 
+        if hasattr(self, "user") and not self.user.is_anonymous:
+            await sync_to_async(PresenceService.mark_offline)(self.user.id)
+
     async def receive(self, text_data):
         data = json.loads(text_data)
         message_type = data.get("type")
 
         if message_type == "ping":
+            await sync_to_async(PresenceService.refresh_presence)(self.user.id)
             await self.send(text_data=json.dumps({"type": "pong"}))
 
     async def notification_message(self, event):

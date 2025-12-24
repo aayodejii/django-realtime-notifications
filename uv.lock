@@ -471,6 +471,7 @@ dependencies = [
     { name = "django-celery-beat" },
     { name = "djangorestframework" },
     { name = "djoser" },
+    { name = "redis" },
 ]
 
 [package.metadata]
@@ -483,6 +484,7 @@ requires-dist = [
     { name = "django-celery-beat", specifier = ">=2.1.0" },
     { name = "djangorestframework", specifier = ">=3.16.1" },
     { name = "djoser", specifier = ">=2.3.3" },
+    { name = "redis", specifier = ">=7.1.0" },
 ]
 
 [[package]]

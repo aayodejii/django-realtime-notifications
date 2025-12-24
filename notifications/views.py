@@ -4,10 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 from .models import Notification
 from .serializers import NotificationSerializer, NotificationStatsSerializer
+from .services.delivery import NotificationDeliveryService
 
 
 class NotificationListCreateView(APIView):
@@ -46,26 +45,7 @@ class NotificationListCreateView(APIView):
         serializer = NotificationSerializer(data=request.data)
         if serializer.is_valid():
             notification = serializer.save(user=request.user)
-
-            # Try immediate WebSocket delivery
-            channel_layer = get_channel_layer()
-            try:
-                async_to_sync(channel_layer.group_send)(
-                    f"notifications_{notification.user.id}",
-                    {
-                        "type": "notification_message",
-                        "notification": serializer.data
-                    }
-                )
-                notification.mark_delivered()
-            except Exception:
-                # Queue for later delivery if WebSocket fails (user offline)
-                from .tasks import process_offline_notification
-                process_offline_notification.apply_async(
-                    args=[notification.id],
-                    countdown=60  # Retry after 1 minute
-                )
-
+            NotificationDeliveryService.deliver(notification, serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

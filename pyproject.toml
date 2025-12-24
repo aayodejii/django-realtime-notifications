@@ -13,4 +13,5 @@ dependencies = [
     "django-celery-beat>=2.1.0",
     "djangorestframework>=3.16.1",
     "djoser>=2.3.3",
+    "redis>=7.1.0",
 ]
