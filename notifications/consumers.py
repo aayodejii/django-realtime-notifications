@@ -25,6 +25,14 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
+        allowed = await sync_to_async(PresenceService.add_connection)(
+            self.user.id, self.channel_name
+        )
+        if not allowed:
+            await self.accept()
+            await self.close(code=4001)
+            return
+
         await self.accept()
 
         await sync_to_async(PresenceService.mark_online)(self.user.id)
@@ -36,7 +44,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                 "notifications": missed_notifications
             }))
 
-    async def disconnect(self, _close_code):
+    async def disconnect(self, close_code):
         if hasattr(self, "user_group_name"):
             await self.channel_layer.group_discard(
                 self.user_group_name,
@@ -44,7 +52,12 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             )
 
         if hasattr(self, "user") and not self.user.is_anonymous:
-            await sync_to_async(PresenceService.mark_offline)(self.user.id)
+            await sync_to_async(PresenceService.remove_connection)(
+                self.user.id, self.channel_name
+            )
+            connection_count = await sync_to_async(PresenceService.get_connection_count)(self.user.id)
+            if connection_count == 0:
+                await sync_to_async(PresenceService.mark_offline)(self.user.id)
 
     async def receive(self, text_data):
         data = json.loads(text_data)
