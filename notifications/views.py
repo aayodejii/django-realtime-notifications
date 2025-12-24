@@ -47,14 +47,24 @@ class NotificationListCreateView(APIView):
         if serializer.is_valid():
             notification = serializer.save(user=request.user)
 
+            # Try immediate WebSocket delivery
             channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f"notifications_{notification.user.id}",
-                {
-                    "type": "notification_message",
-                    "notification": serializer.data
-                }
-            )
+            try:
+                async_to_sync(channel_layer.group_send)(
+                    f"notifications_{notification.user.id}",
+                    {
+                        "type": "notification_message",
+                        "notification": serializer.data
+                    }
+                )
+                notification.mark_delivered()
+            except Exception:
+                # Queue for later delivery if WebSocket fails (user offline)
+                from .tasks import process_offline_notification
+                process_offline_notification.apply_async(
+                    args=[notification.id],
+                    countdown=60  # Retry after 1 minute
+                )
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
