@@ -1,3 +1,4 @@
+import bleach
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Notification
@@ -58,6 +59,24 @@ class NotificationSerializer(serializers.ModelSerializer):
                 f"Invalid channel. Must be one of: {', '.join(valid_channels)}"
             )
         return value
+
+    def validate_title(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("Title cannot be empty")
+        if len(value) > 255:
+            raise serializers.ValidationError("Title cannot exceed 255 characters")
+        return bleach.clean(value.strip(), tags=[], strip=True)
+
+    def validate_message(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("Message cannot be empty")
+        if len(value) > 5000:
+            raise serializers.ValidationError("Message cannot exceed 5000 characters")
+        allowed_tags = ["b", "i", "u", "a", "p", "br"]
+        allowed_attrs = {"a": ["href", "title"]}
+        return bleach.clean(
+            value.strip(), tags=allowed_tags, attributes=allowed_attrs, strip=True
+        )
 
 
 class NotificationStatsSerializer(serializers.Serializer):
