@@ -4,13 +4,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
+
 from .models import Notification
 from .serializers import NotificationSerializer, NotificationStatsSerializer
 from .services.delivery import NotificationDeliveryService
+from .services.rate_limiter import PriorityBasedRateThrottle
 
 
 class NotificationListCreateView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [PriorityBasedRateThrottle]
 
     def get(self, request):
         queryset = Notification.objects.select_related("user").all()
@@ -60,7 +63,9 @@ class NotificationDetailView(APIView):
 
     def patch(self, request, pk):
         notification = get_object_or_404(Notification, pk=pk)
-        serializer = NotificationSerializer(notification, data=request.data, partial=True)
+        serializer = NotificationSerializer(
+            notification, data=request.data, partial=True
+        )
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)

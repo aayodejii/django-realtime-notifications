@@ -146,6 +146,12 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
         "rest_framework.filters.SearchFilter",
     ],
+    "DEFAULT_THROTTLE_RATES": {
+        "notifications": "100/hour",
+        "notifications_high": "100/hour",
+        "notifications_medium": "50/hour",
+        "notifications_low": "20/hour",
+    },
 }
 
 SIMPLE_JWT = {
