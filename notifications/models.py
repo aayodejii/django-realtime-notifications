@@ -1,7 +1,16 @@
+import logging
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.utils import timezone
+from .middleware.metrics import (
+    notifications_created_total,
+    notifications_delivered_total,
+    notifications_failed_total,
+    notification_delivery_latency_seconds,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class Notification(models.Model):
@@ -63,6 +72,20 @@ class Notification(models.Model):
         self.delivered_at = timezone.now()
         self.save(update_fields=["status", "delivered_at"])
 
+        notifications_delivered_total.labels(
+            priority=self.priority, channel=self.channel
+        ).inc()
+
+        latency = (self.delivered_at - self.created_at).total_seconds()
+        notification_delivery_latency_seconds.labels(priority=self.priority).observe(
+            latency
+        )
+
+        logger.info(
+            f"Notification {self.id} delivered to user {self.user_id} "
+            f"(priority={self.priority}, latency={latency:.3f}s)"
+        )
+
     def mark_read(self):
         self.status = "read"
         self.read_at = timezone.now()
@@ -73,6 +96,13 @@ class Notification(models.Model):
         self.failure_reason = reason
         self.last_attempt_at = timezone.now()
         self.save(update_fields=["status", "failure_reason", "last_attempt_at"])
+
+        notifications_failed_total.labels(priority=self.priority, reason=reason).inc()
+
+        logger.error(
+            f"Notification {self.id} failed for user {self.user_id} "
+            f"(priority={self.priority}, reason={reason})"
+        )
 
     def increment_attempts(self):
         self.delivery_attempts += 1

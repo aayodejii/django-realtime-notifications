@@ -1,3 +1,4 @@
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -9,6 +10,9 @@ from .models import Notification
 from .serializers import NotificationSerializer, NotificationStatsSerializer
 from .services.delivery import NotificationDeliveryService
 from .services.rate_limiter import PriorityBasedRateThrottle
+from .middleware.metrics import notifications_created_total
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationListCreateView(APIView):
@@ -48,6 +52,16 @@ class NotificationListCreateView(APIView):
         serializer = NotificationSerializer(data=request.data)
         if serializer.is_valid():
             notification = serializer.save(user=request.user)
+
+            notifications_created_total.labels(
+                priority=notification.priority, channel=notification.channel
+            ).inc()
+
+            logger.info(
+                f"Notification {notification.id} created for user {notification.user_id} "
+                f"(priority={notification.priority}, channel={notification.channel})"
+            )
+
             NotificationDeliveryService.deliver(notification, serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
