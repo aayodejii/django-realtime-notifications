@@ -82,8 +82,13 @@ class Notification(models.Model):
         )
 
         logger.info(
-            f"Notification {self.id} delivered to user {self.user_id} "
-            f"(priority={self.priority}, latency={latency:.3f}s)"
+            "Notification delivered",
+            extra={
+                "notification_id": self.id,
+                "user_id": self.user_id,
+                "priority": self.priority,
+                "latency_seconds": round(latency, 3),
+            },
         )
 
     def mark_read(self):
@@ -100,8 +105,13 @@ class Notification(models.Model):
         notifications_failed_total.labels(priority=self.priority, reason=reason).inc()
 
         logger.error(
-            f"Notification {self.id} failed for user {self.user_id} "
-            f"(priority={self.priority}, reason={reason})"
+            "Notification failed",
+            extra={
+                "notification_id": self.id,
+                "user_id": self.user_id,
+                "priority": self.priority,
+                "failure_reason": reason,
+            },
         )
 
     def increment_attempts(self):

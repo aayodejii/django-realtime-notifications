@@ -58,8 +58,13 @@ class NotificationListCreateView(APIView):
             ).inc()
 
             logger.info(
-                f"Notification {notification.id} created for user {notification.user_id} "
-                f"(priority={notification.priority}, channel={notification.channel})"
+                "Notification created",
+                extra={
+                    "notification_id": notification.id,
+                    "user_id": notification.user_id,
+                    "priority": notification.priority,
+                    "channel": notification.channel,
+                },
             )
 
             NotificationDeliveryService.deliver(notification, serializer.data)
