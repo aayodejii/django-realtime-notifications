@@ -27,33 +27,39 @@ A scalable real-time notification system featuring WebSocket delivery, priority-
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd django-realtime-notifications
 ```
 
 2. Install dependencies using uv:
+
 ```bash
 uv sync
 ```
 
 3. Set up environment variables:
+
 ```bash
 cp .env.example .env
 ```
 
 Edit `.env` with your configuration:
+
 - Database credentials
 - Redis URL
 - Email settings
 - JWT secret key
 
 4. Run migrations:
+
 ```bash
 uv run python manage.py migrate
 ```
 
 5. Create a superuser:
+
 ```bash
 uv run python manage.py createsuperuser
 ```
@@ -61,21 +67,25 @@ uv run python manage.py createsuperuser
 ## Running the Application
 
 1. Start Redis:
+
 ```bash
 docker run -d -p 6379:6379 --name redis-notifications redis:alpine
 ```
 
 2. Start Celery worker:
+
 ```bash
 uv run celery -A django_realtime_notifications worker --loglevel=info
 ```
 
 3. Start Celery beat (for scheduled tasks):
+
 ```bash
 uv run celery -A django_realtime_notifications beat --loglevel=info
 ```
 
 4. Start Django development server:
+
 ```bash
 uv run python manage.py runserver
 ```
@@ -83,10 +93,12 @@ uv run python manage.py runserver
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/jwt/create/` - Get JWT token
 - `POST /api/auth/jwt/refresh/` - Refresh JWT token
 
 ### Notifications
+
 - `GET /api/notifications/` - List notifications (supports filtering)
 - `POST /api/notifications/` - Create notification
 - `GET /api/notifications/{id}/` - Get notification details
@@ -96,11 +108,13 @@ uv run python manage.py runserver
 - `GET /api/notifications/stats/` - Get notification statistics
 
 ### Metrics
+
 - `GET /api/metrics/` - Prometheus metrics endpoint
 
 ## WebSocket Connection
 
 Connect to WebSocket endpoint:
+
 ```
 ws://localhost:8000/ws/notifications/?token=<JWT_TOKEN>
 ```
@@ -108,11 +122,13 @@ ws://localhost:8000/ws/notifications/?token=<JWT_TOKEN>
 ### Message Types
 
 **Incoming:**
+
 - `notification` - New notification
 - `missed_notifications` - Notifications received while offline
 - `pong` - Heartbeat response
 
 **Outgoing:**
+
 - `ping` - Heartbeat to maintain connection
 
 ## Frontend Demo
@@ -120,6 +136,7 @@ ws://localhost:8000/ws/notifications/?token=<JWT_TOKEN>
 Open `frontend/index.html` in a browser to see the real-time notification demo.
 
 Features:
+
 - Real-time notification display
 - Connection status indicator
 - Disconnect/reconnect functionality
@@ -135,15 +152,18 @@ Features:
 ## Configuration
 
 ### Connection Limits
+
 - Maximum 5 concurrent connections per user
 - Configurable in `notifications/services/connection.py`
 
 ### Notification Channels
+
 - `websocket` - Real-time delivery via WebSocket
 - `email` - Email notification
 - `both` - Both WebSocket and email
 
 ### Retry Strategy
+
 - Failed notifications retry after 60 seconds
 - Maximum delivery attempts tracked
 - Exponential backoff for retries
@@ -151,9 +171,11 @@ Features:
 ## Monitoring
 
 ### Prometheus Metrics
+
 Access metrics at `http://localhost:8000/api/metrics/`
 
 Available metrics:
+
 - `notifications_created_total` - Total notifications created
 - `notifications_delivered_total` - Total notifications delivered
 - `notifications_failed_total` - Total failed deliveries
@@ -162,24 +184,97 @@ Available metrics:
 - `pending_notifications_count` - Pending notifications
 
 ### Structured Logging
+
 Logs are output in JSON format for easy parsing by log aggregation tools.
+
+## Docker Deployment
+
+### Quick Start with Docker Compose
+
+1. Copy environment file:
+
+```bash
+cp .env.example .env
+```
+
+2. Update `.env` with your configuration (SECRET_KEY, database credentials, etc.)
+
+3. Build and start all services:
+
+```bash
+docker compose up --build
+```
+
+4. Run migrations:
+
+```bash
+docker compose exec django uv run python manage.py migrate
+```
+
+5. Create superuser:
+
+```bash
+docker compose exec django uv run python manage.py createsuperuser
+```
+
+The application will be available at `http://localhost:8000`
+
+### Services
+
+- **django**: Django application with Daphne ASGI server (port 8000)
+- **postgres**: PostgreSQL database (port 5432)
+- **redis**: Redis for caching, channel layer, and Celery (port 6379)
+- **celery-worker**: Celery worker for async tasks
+- **celery-beat**: Celery beat scheduler for periodic tasks
+
+### Stopping Services
+
+```bash
+docker compose down
+```
+
+To remove volumes as well:
+
+```bash
+docker compose down -v
+```
 
 ## Development
 
 Run tests:
+
 ```bash
 uv run pytest
 ```
 
+Run with coverage:
+
+```bash
+uv run pytest --cov=notifications --cov-report=html
+```
+
 Check code style:
+
 ```bash
 uv run ruff check .
 ```
 
 Format code:
+
 ```bash
 uv run ruff format .
 ```
+
+## Production Deployment
+
+1. Set `DEBUG=False` in `.env`
+2. Generate a secure `SECRET_KEY`
+3. Update `ALLOWED_HOSTS` with your domain
+4. Configure proper email backend (SMTP)
+5. Use PostgreSQL for database
+6. Set up SSL/TLS certificates
+7. Configure Prometheus scraping for metrics
+8. Set up log aggregation (ELK, Loki, CloudWatch)
 
 ## License
 
